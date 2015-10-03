@@ -641,7 +641,7 @@ XS(XS_add_timer) {
         uint8_t uwsgi_signal = SvIV(ST(0));
         int seconds = SvIV(ST(1));
 
-        if (uwsgi_add_timer(uwsgi_signal, seconds)) {
+        if (uwsgi_add_timer(uwsgi_signal, seconds, 0)) {
 		croak("unable to register timer");
 		XSRETURN_UNDEF;
         }

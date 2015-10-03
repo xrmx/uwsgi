@@ -180,7 +180,7 @@ int uwsgi_add_file_monitor(uint8_t sig, char *filename) {
 
 }
 
-int uwsgi_add_timer(uint8_t sig, int secs) {
+int uwsgi_add_timer(uint8_t sig, int secs, long nsecs) {
 
 	if (!uwsgi.master_process) return -1;
 
@@ -192,6 +192,7 @@ int uwsgi_add_timer(uint8_t sig, int secs) {
 		ushared->timers[ushared->timers_cnt].value = secs;
 		ushared->timers[ushared->timers_cnt].registered = 0;
 		ushared->timers[ushared->timers_cnt].sig = sig;
+		ushared->timers[ushared->timers_cnt].nsvalue = nsecs;
 		ushared->timers_cnt++;
 	}
 	else {

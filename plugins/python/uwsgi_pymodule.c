@@ -253,7 +253,7 @@ static PyObject *py_uwsgi_add_timer(PyObject * self, PyObject * args) {
 		return NULL;
 	}
 
-	if (uwsgi_add_timer(uwsgi_signal, secs))
+	if (uwsgi_add_timer(uwsgi_signal, secs, 0))
 		return PyErr_Format(PyExc_ValueError, "unable to add timer");
 
 	Py_INCREF(Py_None);

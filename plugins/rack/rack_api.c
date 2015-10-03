@@ -616,7 +616,7 @@ static VALUE rack_uwsgi_add_timer(VALUE *class, VALUE rbsignum, VALUE secs) {
         uint8_t uwsgi_signal = NUM2INT(rbsignum);
         int seconds = NUM2INT(secs);
 
-        if (uwsgi_add_timer(uwsgi_signal, seconds)) {
+        if (uwsgi_add_timer(uwsgi_signal, seconds, 0)) {
                 rb_raise(rb_eRuntimeError, "unable to add timer");
                 return Qnil;
         }

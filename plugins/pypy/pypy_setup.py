@@ -209,7 +209,7 @@ char *uwsgi_cache_item_key(struct uwsgi_cache_item *);
 struct uwsgi_cache_item *uwsgi_cache_keys(struct uwsgi_cache *, uint64_t *, struct uwsgi_cache_item **);
 
 int uwsgi_add_file_monitor(uint8_t, char *);
-int uwsgi_add_timer(uint8_t, int);
+int uwsgi_add_timer(uint8_t, int, long);
 int uwsgi_signal_add_rb_timer(uint8_t, int, int);
 
 int uwsgi_user_lock(int);
@@ -625,7 +625,7 @@ def uwsgi_pypy_uwsgi_cache_keys(cache=ffi.NULL):
 uwsgi.cache_keys = uwsgi_pypy_uwsgi_cache_keys
 
 def uwsgi_pypy_uwsgi_add_timer(signum, secs):
-    if lib.uwsgi_add_timer(signum, secs) < 0:
+    if lib.uwsgi_add_timer(signum, secs, 0) < 0:
         raise Exception("unable to register timer")
 uwsgi.add_timer = uwsgi_pypy_uwsgi_add_timer
 
