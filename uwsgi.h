@@ -4047,7 +4047,7 @@ struct uwsgi_stats {
 struct uwsgi_stats_pusher_instance;
 
 struct uwsgi_stats_pusher {
-	char *name;
+	const char *name;
 	void (*func) (struct uwsgi_stats_pusher_instance *, time_t, char *, size_t);
 	int raw;
 	struct uwsgi_stats_pusher *next;
@@ -4077,7 +4077,7 @@ void uwsgi_stats_pusher_loop(struct uwsgi_thread *);
 void uwsgi_stats_pusher_setup(void);
 void uwsgi_send_stats(int, struct uwsgi_stats *(*func) (void));
 struct uwsgi_stats *uwsgi_master_generate_stats(void);
-struct uwsgi_stats_pusher * uwsgi_register_stats_pusher(char *, void (*)(struct uwsgi_stats_pusher_instance *, time_t, char *, size_t));
+struct uwsgi_stats_pusher * uwsgi_register_stats_pusher(const char *, void (*)(struct uwsgi_stats_pusher_instance *, time_t, char *, size_t));
 
 struct uwsgi_stats *uwsgi_stats_new(size_t);
 int uwsgi_stats_symbol(struct uwsgi_stats *, char);

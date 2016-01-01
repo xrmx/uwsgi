@@ -525,7 +525,7 @@ void uwsgi_stats_pusher_setup() {
 	}
 }
 
-struct uwsgi_stats_pusher *uwsgi_register_stats_pusher(char *name, void (*func) (struct uwsgi_stats_pusher_instance *, time_t, char *, size_t)) {
+struct uwsgi_stats_pusher *uwsgi_register_stats_pusher(const char *name, void (*func) (struct uwsgi_stats_pusher_instance *, time_t, char *, size_t)) {
 
 	struct uwsgi_stats_pusher *pusher = uwsgi.stats_pushers, *old_pusher = NULL;
 
