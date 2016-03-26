@@ -850,6 +850,7 @@ struct uwsgi_cache {
 	int lazy_expire;
 	uint64_t sweep_on_full;
 	int clear_on_full;
+	int sweep_on_init;
 };
 
 struct uwsgi_option {
