@@ -723,6 +723,7 @@ void uwsgi_cache_fix(struct uwsgi_cache *uc) {
 
 	uint64_t i;
 	unsigned long long restored = 0;
+	uint64_t next_scan = 0;
 
 	// reset unused blocks
 	uc->unused_blocks_stack_ptr = 0;
@@ -735,6 +736,9 @@ void uwsgi_cache_fix(struct uwsgi_cache *uc) {
 				// put value in hash_table
 				uc->hashtable[uci->hash % uc->hashsize] = i;
 			}
+			if (uci->expires && (!next_scan || next_scan > uci->expires)) {
+				next_scan = uci->expires;
+			}
 			restored++;
 		}
 		else {
@@ -744,6 +748,7 @@ void uwsgi_cache_fix(struct uwsgi_cache *uc) {
 		}
 	}
 
+	uc->next_scan = next_scan;
 	uc->n_items = restored;
 	uwsgi_log("[uwsgi-cache] restored %llu items\n", uc->n_items);
 }
