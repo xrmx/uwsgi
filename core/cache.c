@@ -3,6 +3,8 @@
 extern struct uwsgi_server uwsgi;
 #define cache_item(x) (struct uwsgi_cache_item *) (((char *)uc->items) + ((sizeof(struct uwsgi_cache_item)+uc->keysize) * x))
 
+static void uwsgi_cache_sweep_on_init(struct uwsgi_cache *uc);
+
 // block bitmap manager
 
 /* how the cache bitmap works:
@@ -343,45 +345,6 @@ next2:
 #endif
 }
 
-static void uwsgi_cache_sweep_on_init(struct uwsgi_cache *uc) {
-
-	if (!uc->sweep_on_init && (uc->no_expire || uc->purge_lru || uc->lazy_expire)) {
-		return;
-	}
-
-	uint64_t i;
-	uint64_t expired = 0;
-	uint64_t now = (uint64_t) uwsgi_now();
-
-	uwsgi_wlock(uc->lock);
-
-	if (!uc->next_scan || uc->next_scan > now) {
-		uwsgi_rwunlock(uc->lock);
-		return;
-	}
-
-	uc->next_scan = 0; // updating
-
-	for (i = 1; i < uc->max_items; ++i) {
-		struct uwsgi_cache_item *uci = cache_item(i);
-
-		if (uci->expires) {
-			if (uci->expires <= now) {
-				if (!uwsgi_cache_del2(uc, NULL, 0, i, 0)) {
-					++expired;
-				}
-			} else if (!uc->next_scan || uc->next_scan > uci->expires) {
-				uc->next_scan = uci->expires;
-			}
-		}
-	}
-
-	uwsgi_rwunlock(uc->lock);
-
-	if (expired) {
-		uwsgi_log("[cache-%s] items expired after init: %llu\n", uc->name ? uc->name : "default", expired);
-	}
-}
 
 
 void uwsgi_cache_init(struct uwsgi_cache *uc) {
@@ -1144,15 +1107,17 @@ void *cache_udp_server_loop(void *ucache) {
         return NULL;
 }
 
-static uint64_t cache_sweeper_free_items(struct uwsgi_cache *uc) {
+static uint64_t cache_sweeper_free_items(struct uwsgi_cache *uc, int sweep_on_init) {
 	uint64_t i;
 	uint64_t freed_items = 0;
+	time_t real_now = uwsgi_now();
+	time_t *now = sweep_on_init ? &real_now : &uwsgi.current_time;
 
 	if (uc->no_expire || uc->purge_lru || uc->lazy_expire)
 		return 0;
 
 	uwsgi_rlock(uc->lock);
-	if (!uc->next_scan || uc->next_scan > (uint64_t)uwsgi.current_time) {
+	if (!uc->next_scan || uc->next_scan > (uint64_t)*now) {
 		uwsgi_rwunlock(uc->lock);
 		return 0;
 	}
@@ -1169,8 +1134,8 @@ static uint64_t cache_sweeper_free_items(struct uwsgi_cache *uc) {
 			uc->next_scan = 0;
 
 		if (uci->expires) {
-			if (uci->expires <= (uint64_t)uwsgi.current_time) {
-				uwsgi_cache_del2(uc, NULL, 0, i, UWSGI_CACHE_FLAG_LOCAL);
+			if (uci->expires <= (uint64_t)*now) {
+				uwsgi_cache_del2(uc, NULL, 0, i, sweep_on_init ? 0 : UWSGI_CACHE_FLAG_LOCAL);
 				freed_items++;
 			} else if (!uc->next_scan || uc->next_scan > uci->expires) {
 				uc->next_scan = uci->expires;
@@ -1180,6 +1145,16 @@ static uint64_t cache_sweeper_free_items(struct uwsgi_cache *uc) {
 	}
 
 	return freed_items;
+}
+
+static void uwsgi_cache_sweep_on_init(struct uwsgi_cache *uc) {
+	if (!uc->sweep_on_init)
+		return;
+
+	uint64_t expired = cache_sweeper_free_items(uc, 1);
+	if (expired) {
+		uwsgi_log("[cache-%s] items expired after init: %llu\n", uc->name ? uc->name : "default", expired);
+	}
 }
 
 static void *cache_sweeper_loop(void *ucache) {
@@ -1197,7 +1172,7 @@ static void *cache_sweeper_loop(void *ucache) {
 		struct uwsgi_cache *uc;
 
 		for (uc = (struct uwsgi_cache *)ucache; uc; uc = uc->next) {
-			uint64_t freed_items = cache_sweeper_free_items(uc);
+			uint64_t freed_items = cache_sweeper_free_items(uc, 0);
 			if (uwsgi.cache_report_freed_items && freed_items)
 				uwsgi_log("freed %llu items for cache \"%s\"\n", (unsigned long long)freed_items, uc->name);
 		}
