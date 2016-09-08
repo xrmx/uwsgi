@@ -518,59 +518,58 @@ static size_t uwsgi_webdav_expand_fake_path(struct wsgi_request *wsgi_req, char 
 static xmlDoc *uwsgi_webdav_manage_prop(struct wsgi_request *wsgi_req, xmlNode *req_prop, char *filename, size_t filename_len, int with_values) {
 	// default 1 depth
 	int depth = 1;
-        uint16_t http_depth_len = 0;
-        char *http_depth = uwsgi_get_var(wsgi_req, "HTTP_DEPTH", 10, &http_depth_len);
-        if (http_depth) {
-                depth = uwsgi_str_num(http_depth, http_depth_len);
-        }
+	uint16_t http_depth_len = 0;
+	char *http_depth = uwsgi_get_var(wsgi_req, "HTTP_DEPTH", 10, &http_depth_len);
+	if (http_depth) {
+		depth = uwsgi_str_num(http_depth, http_depth_len);
+	}
 
 	xmlDoc *rdoc = xmlNewDoc(BAD_CAST "1.0");
-        xmlNode *multistatus = xmlNewNode(NULL, BAD_CAST "multistatus");
-        xmlDocSetRootElement(rdoc, multistatus);
-        xmlNsPtr dav_ns = xmlNewNs(multistatus, BAD_CAST "DAV:", BAD_CAST "D");
-        xmlSetNs(multistatus, dav_ns);
+	xmlNode *multistatus = xmlNewNode(NULL, BAD_CAST "multistatus");
+	xmlDocSetRootElement(rdoc, multistatus);
+	xmlNsPtr dav_ns = xmlNewNs(multistatus, BAD_CAST "DAV:", BAD_CAST "D");
+	xmlSetNs(multistatus, dav_ns);
 
 	if (depth == 0) {
-                char *uri = uwsgi_concat2n(wsgi_req->path_info, wsgi_req->path_info_len, "", 0);
-                uwsgi_webdav_add_props(wsgi_req, req_prop, multistatus, dav_ns, uri, filename, with_values);
-                free(uri);
-        }
-        else {
-                DIR *collection = opendir(filename);
-                struct dirent de;
-                for (;;) {
-                        struct dirent *de_r = NULL;
-                        if (readdir_r(collection, &de, &de_r)) {
-                                uwsgi_error("uwsgi_wevdav_manage_propfind()/readdir_r()");
-                                break;
-                        }
-                        if (de_r == NULL) {
-                                break;
-                        }
-                        char *uri = NULL;
-                        char *direntry = NULL;
-                        if (!strcmp(de.d_name, "..")) {
-                                // skip ..
-                                continue;
-                        }
-                        else if (!strcmp(de.d_name, ".")) {
-                                uri = uwsgi_concat2n(wsgi_req->path_info, wsgi_req->path_info_len, "", 0);
-                                direntry = uwsgi_concat2n(filename, filename_len, "", 0);
-                        }
-                        else if (wsgi_req->path_info[wsgi_req->path_info_len - 1] == '/') {
-                                uri = uwsgi_concat2n(wsgi_req->path_info, wsgi_req->path_info_len, de.d_name, strlen(de.d_name));
-                                direntry = uwsgi_concat3n(filename, filename_len, "/", 1, de.d_name, strlen(de.d_name));
-                        }
-                        else {
-                                uri = uwsgi_concat3n(wsgi_req->path_info, wsgi_req->path_info_len, "/", 1, de.d_name, strlen(de.d_name));
-                                direntry = uwsgi_concat3n(filename, filename_len, "/", 1, de.d_name, strlen(de.d_name));
-                        }
-                        uwsgi_webdav_add_props(wsgi_req, req_prop, multistatus, dav_ns, uri, direntry, with_values);
-                        free(uri);
-                        free(direntry);
-                }
-                closedir(collection);
-        }
+		char *uri = uwsgi_concat2n(wsgi_req->path_info, wsgi_req->path_info_len, "", 0);
+		uwsgi_webdav_add_props(wsgi_req, req_prop, multistatus, dav_ns, uri, filename, with_values);
+		free(uri);
+	}
+	else {
+		DIR *collection = opendir(filename);
+		struct dirent *de;
+		for (;;) {
+			de = readdir(collection);
+			if (de == NULL) {
+				if (errno == ENOENT || errno == EOVERFLOW || errno == EBADF) {
+					uwsgi_error("uwsgi_wevdav_manage_propfind()/readdir");
+				}
+				break;
+			}
+			char *uri = NULL;
+			char *direntry = NULL;
+			if (!strcmp(de->d_name, "..")) {
+				// skip ..
+				continue;
+			}
+			else if (!strcmp(de->d_name, ".")) {
+				uri = uwsgi_concat2n(wsgi_req->path_info, wsgi_req->path_info_len, "", 0);
+				direntry = uwsgi_concat2n(filename, filename_len, "", 0);
+			}
+			else if (wsgi_req->path_info[wsgi_req->path_info_len - 1] == '/') {
+				uri = uwsgi_concat2n(wsgi_req->path_info, wsgi_req->path_info_len, de->d_name, strlen(de->d_name));
+				direntry = uwsgi_concat3n(filename, filename_len, "/", 1, de->d_name, strlen(de->d_name));
+			}
+			else {
+				uri = uwsgi_concat3n(wsgi_req->path_info, wsgi_req->path_info_len, "/", 1, de->d_name, strlen(de->d_name));
+				direntry = uwsgi_concat3n(filename, filename_len, "/", 1, de->d_name, strlen(de->d_name));
+			}
+			uwsgi_webdav_add_props(wsgi_req, req_prop, multistatus, dav_ns, uri, direntry, with_values);
+			free(uri);
+			free(direntry);
+		}
+		closedir(collection);
+}
 
 	return rdoc;
 	
@@ -835,18 +834,20 @@ end:
 static int uwsgi_webdav_massive_delete(char *dir) {
 	int ret = 0;
 	DIR *d = opendir(dir);
+	struct dirent *de;
 	for (;;) {
-        	struct dirent *de_r = NULL;
-		struct dirent de;
-                if (readdir_r(d, &de, &de_r)) {
-			ret = -1;
-			goto end;
+		de = readdir(d);
+		if (de == NULL) {
+			if (errno == ENOENT || errno == EOVERFLOW || errno == EBADF) {
+				ret = -1;
+				goto end;
+			}
+			break;
 		}
-		if (de_r == NULL) break;
 		// skip myself and parent
-		if (!strcmp(de.d_name, ".") || !strcmp(de.d_name, "..")) continue;
-		char *item = uwsgi_concat3(dir, "/", de.d_name);
-		if (de.d_type == DT_DIR) {
+		if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) continue;
+		char *item = uwsgi_concat3(dir, "/", de->d_name);
+		if (de->d_type == DT_DIR) {
 			if (uwsgi_webdav_massive_delete(item)) {
 				free(item);
 				ret = -1;
@@ -985,15 +986,14 @@ next:
         free(tasklist);
 #else
 	DIR *d = opendir(dir);
-        for (;;) {
-                struct dirent *de_r = NULL;
-                struct dirent de;
-                if (readdir_r(d, &de, &de_r)) goto end;
-                if (de_r == NULL) break;
-		// skip items startign with a dot
+	struct dirent de;
+	for (;;) {
+		de = readdir(d);
+		if (de == NULL) break;
+		// skip items starting with a dot
 		if (de.d_name[0] == '.') continue;
 		if (uwsgi_webdav_dirlist_add_item(ub, de.d_name, strlen(de.d_name), de.d_type == DT_DIR ? 1 : 0)) goto end;
-        }
+	}
 
 	closedir(d);
 #endif
