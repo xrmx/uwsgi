@@ -6,7 +6,7 @@ compiler:
 
 script:
   - echo -e "\n\n>>> Building kitchensink uWSGI binary"
-  - /usr/bin/python uwsgiconfig.py --build travis
+  - UWSGICONFIG_PHPPATH=php-config7.2 /usr/bin/python uwsgiconfig.py --build travis
   - echo -e "\n\n>>> Building uWSGI binary"
   - make
   - echo -e "\n\n>>> Building python26 plugin"
