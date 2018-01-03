@@ -34,12 +34,13 @@ script:
 
 before_install:
   - sudo add-apt-repository ppa:deadsnakes/ppa -y
+  - sudo add-apt-repository ppa:ondrej/php -y
   #- sudo add-apt-repository ppa:fkrull/deadsnakes -y
   #- sudo add-apt-repository ppa:nathan-renniewaldock/ppa -y
   - sudo apt-get update -qq
   - sudo apt-get install -qqyf python2.6-dev python3.4-dev python3.5-dev
   - sudo apt-get install -qqyf libxml2-dev libpcre3-dev libcap2-dev
-  - sudo apt-get install -qqyf php5-dev libphp5-embed liblua5.1-0-dev
+  - sudo apt-get install -qqyf php5.6 liblua5.1-0-dev
   - sudo apt-get install -qqyf libjansson-dev libldap2-dev libpq-dev
   - sudo apt-get install -qqyf libpam0g-dev libsqlite3-dev libyaml-dev
   - sudo apt-get install -qqyf libzmq-dev libmatheval-dev libperl-dev
