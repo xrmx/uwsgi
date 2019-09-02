@@ -9,6 +9,10 @@ def application(env, start_response):
     gc.collect()
     start_objs = len(gc.get_objects())
 
+    workers = uwsgi.workers()
+    for w in workers:
+        assert w['apps']
+
     for i in range(200):
         uwsgi.workers()
 
