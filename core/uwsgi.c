@@ -349,6 +349,7 @@ static struct uwsgi_option uwsgi_base_options[] = {
 	{"spooler-frequency", required_argument, 0, "set spooler frequency", uwsgi_opt_set_int, &uwsgi.spooler_frequency, 0},
 	{"spooler-freq", required_argument, 0, "set spooler frequency", uwsgi_opt_set_int, &uwsgi.spooler_frequency, 0},
 	{"spooler-cheap", no_argument, 0, "set spooler cheap mode", uwsgi_opt_true, &uwsgi.spooler_cheap, 0},
+	{"spooler-recycle-on-retry", no_argument, 0, "recycle the spooler after a retry", uwsgi_opt_true, &uwsgi.spooler_recycle_on_retry, 0},
 
 	{"mule", optional_argument, 0, "add a mule", uwsgi_opt_add_mule, NULL, UWSGI_OPT_MASTER},
 	{"mules", required_argument, 0, "add the specified number of mules", uwsgi_opt_add_mules, NULL, UWSGI_OPT_MASTER},

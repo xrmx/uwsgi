@@ -2434,7 +2434,7 @@ struct uwsgi_server {
 	int spooler_ordered;
 	int spooler_quiet;
 	int spooler_frequency;
-
+	int spooler_recycle_on_retry;
 
 	int snmp;
 	char *snmp_addr;

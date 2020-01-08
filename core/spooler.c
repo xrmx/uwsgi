@@ -717,6 +717,10 @@ void spooler_manage_task(struct uwsgi_spooler *uspool, char *dir, char *task) {
 				end_me(0);
 			}
 
+			if (ret == -1 && uwsgi.spooler_recycle_on_retry) {
+				uwsgi_log("[spooler %s pid: %d] recycling spooler on retry ...\n", uspool->dir, (int) uwsgi.mypid);
+				end_me(0);
+			}
 
 			if (chdir(dir)) {
 				uwsgi_error("chdir()");
