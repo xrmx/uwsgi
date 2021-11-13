@@ -52,6 +52,11 @@
 #endif
 #endif
 
+/* This has been introduced in 3.8 but let's limit to < 3.10 for now */
+#if (PY_VERSION_HEX < 0x030a00f0)
+#define HAS_NOT_PyConfig
+#endif
+
 #define UWSGI_GET_GIL up.gil_get();
 #define UWSGI_RELEASE_GIL up.gil_release();
 

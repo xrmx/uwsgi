@@ -234,6 +234,12 @@ PyMethodDef uwsgi_write_method[] = { {"uwsgi_write", py_uwsgi_write, METH_VARARG
 
 int uwsgi_python_init() {
 
+#if !defined(HAS_NOT_PyConfig)
+	PyConfig config;
+	PyStatus status;
+
+	PyConfig_InitPythonConfig(&config);
+#endif
 	char *pyversion = strchr(Py_GetVersion(), '\n');
 	if (!pyversion) {
         	uwsgi_log_initial("Python version: %s\n", Py_GetVersion());
@@ -272,7 +278,11 @@ int uwsgi_python_init() {
 			exit(1);
 		}
 		mbstowcs(wpyhome, up.home, len);
+#ifdef HAS_NOT_PyConfig
 		Py_SetPythonHome(wpyhome);
+#else
+		config.home = wpyhome;
+#endif
 		// do not free this memory !!!
 		//free(wpyhome);
 pep405:
@@ -296,15 +306,27 @@ pep405:
 
 	wchar_t *pname = uwsgi_calloc(sizeof(wchar_t) * (strlen(program_name)+1));
 	mbstowcs(pname, program_name, strlen(program_name)+1);
+#ifdef HAS_NOT_PyConfig
 	Py_SetProgramName(pname);
+#else
+	config.program_name = pname;
+#endif
 #else
 	Py_SetProgramName(program_name);
 #endif
 
-
 	Py_OptimizeFlag = up.optimize;
 
+#ifdef HAS_NOT_PyConfig
 	Py_Initialize();
+#else
+	status = Py_InitializeFromConfig(&config);
+	if (PyStatus_Exception(status)) {
+		PyConfig_Clear(&config);
+		Py_ExitStatusException(status);
+	}
+	PyConfig_Clear(&config);
+#endif
 
 ready:
 
