@@ -2,6 +2,26 @@
 
 extern struct uwsgi_server uwsgi;
 
+static int uwsgi_static_map_match(char *path_info, uint16_t path_info_len, struct uwsgi_dyn_dict *udd) {
+	if (udd->keylen == 0) {
+		return 1;
+	}
+
+	if (uwsgi_starts_with(path_info, path_info_len, udd->key, udd->keylen)) {
+		return 0;
+	}
+
+	if (path_info_len == udd->keylen) {
+		return 1;
+	}
+
+	if (udd->key[udd->keylen - 1] == '/') {
+		return 1;
+	}
+
+	return path_info[udd->keylen] == '/';
+}
+
 // this is like uwsgi_str_num but with security checks
 static size_t get_content_length(char *buf, uint16_t size) {
         int i;
@@ -872,7 +892,7 @@ nextcs:
 			udd->status = 1 + uwsgi_is_file(real_docroot);
 		}
 
-		if (!uwsgi_starts_with(wsgi_req->path_info, wsgi_req->path_info_len, udd->key, udd->keylen)) {
+		if (uwsgi_static_map_match(wsgi_req->path_info, wsgi_req->path_info_len, udd)) {
 			if (!uwsgi_file_serve(wsgi_req, udd->value, udd->vallen, wsgi_req->path_info + udd->keylen, wsgi_req->path_info_len - udd->keylen, udd->status - 1)) {
 				return -1;
 			}
@@ -905,7 +925,7 @@ nextsm:
 			udd->status = 1 + uwsgi_is_file(real_docroot);
 		}
 
-		if (!uwsgi_starts_with(wsgi_req->path_info, wsgi_req->path_info_len, udd->key, udd->keylen)) {
+		if (uwsgi_static_map_match(wsgi_req->path_info, wsgi_req->path_info_len, udd)) {
 			if (!uwsgi_file_serve(wsgi_req, udd->value, udd->vallen, wsgi_req->path_info, wsgi_req->path_info_len, udd->status - 1)) {
 				return -1;
 			}

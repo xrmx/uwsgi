@@ -2,6 +2,48 @@
 
 extern struct uwsgi_server uwsgi;
 
+static int uwsgi_path_has_dotdot(char *path, uint16_t path_len) {
+	uint16_t i = 0;
+
+	while (i < path_len) {
+		while (i < path_len && path[i] == '/') {
+			i++;
+		}
+
+		uint16_t segment_start = i;
+
+		while (i < path_len && path[i] != '/') {
+			i++;
+		}
+
+		if (i - segment_start == 2 && path[segment_start] == '.' && path[segment_start + 1] == '.') {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int uwsgi_path_is_under(char *path, size_t path_len, char *root, uint16_t root_len) {
+	if (root_len == 0) {
+		return 0;
+	}
+
+	if (uwsgi_starts_with(path, path_len, root, root_len)) {
+		return 0;
+	}
+
+	if (path_len == root_len) {
+		return 1;
+	}
+
+	if (root[root_len - 1] == '/') {
+		return 1;
+	}
+
+	return path[root_len] == '/';
+}
+
 int uwsgi_static_want_gzip(struct wsgi_request *wsgi_req, char *filename, size_t *filename_len, struct stat *st) {
 	char can_gzip = 0, can_br = 0;
 
@@ -587,6 +629,11 @@ int uwsgi_file_serve(struct wsgi_request *wsgi_req, char *document_root, uint16_
 
 	struct uwsgi_string_list *index = NULL;
 
+	if (!is_a_file && uwsgi_path_has_dotdot(path_info, path_info_len)) {
+		uwsgi_log("[uwsgi-fileserve] security error: requested path %.*s contains unsafe \"..\" segments\n", path_info_len, path_info);
+		return -1;
+	}
+
 	if (!is_a_file) {
 		filename = uwsgi_concat3n(document_root, document_root_len, "/", 1, path_info, path_info_len);
 		filename_len = document_root_len + 1 + path_info_len;
@@ -632,10 +679,10 @@ int uwsgi_file_serve(struct wsgi_request *wsgi_req, char *document_root, uint16_
 found:
 	free(filename);
 
-	if (uwsgi_starts_with(real_filename, real_filename_len, document_root, document_root_len)) {
+	if (!uwsgi_path_is_under(real_filename, real_filename_len, document_root, document_root_len)) {
 		struct uwsgi_string_list *safe = uwsgi.static_safe;
 		while(safe) {
-			if (!uwsgi_starts_with(real_filename, real_filename_len, safe->value, safe->len)) {
+			if (uwsgi_path_is_under(real_filename, real_filename_len, safe->value, safe->len)) {
 				goto safe;
 			}
 			safe = safe->next;

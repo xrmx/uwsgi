@@ -95,6 +95,12 @@ class UwsgiTest(unittest.TestCase):
         with requests.get(f"http://{UWSGI_HTTP}{url_path}") as r:
             self.assertEqual(r.text, body_expected)
 
+    def assert_GET_status(self, url_path, status_expected, body_expected=None):
+        with requests.get(f"http://{UWSGI_HTTP}{url_path}") as r:
+            self.assertEqual(r.status_code, status_expected)
+            if body_expected is not None:
+                self.assertEqual(r.text, body_expected)
+
     def test_static_expires(self):
         self.start_listen_server(
             [
@@ -106,6 +112,27 @@ class UwsgiTest(unittest.TestCase):
 
         with requests.get(f"http://{UWSGI_HTTP}/foobar/config.ini") as r:
             self.assertTrue("Expires" in r.headers)
+
+    def test_static_map_path_safety(self):
+        static_root = os.path.join(TESTS_DIR, "static_security", "static")
+        safe_root = os.path.join(TESTS_DIR, "static_security")
+
+        self.start_listen_server(
+            [
+                "--need-app=0",
+                "--plugin",
+                "notfound",
+                "--static-map",
+                f"/static={static_root}",
+                "--static-safe",
+                safe_root,
+            ]
+        )
+
+        self.assert_GET_status("/static/ok.txt", 200, "public\n")
+        self.assert_GET_status("/static../foo", 404)
+        self.assert_GET_status("/static/../foo", 404)
+        self.assert_GET_status("/static../static2/secret.txt", 404)
 
     @unittest.skipUnless(*plugins_available(["python"]))
     def test_mountpoints(self):
